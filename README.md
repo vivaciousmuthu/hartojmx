@@ -3,9 +3,9 @@ If you need to convert a .har file to a .jmx file, simply upload your recorded H
 
 # Follow these steps:
 
-Step 1. Select your recorded HAR file.
-Step 2. Click Browse or drag and drop the file into the upload area.
-Step 3. If configuration options are needed, enable the toggle switch. Otherwise, leave it off.
-Step 4. Once ready, click Convert to JMX and download your generated JMX file.
-
-Rest is yours, You can verify, enhance, and finalize your script so it’s fully validated and ready for load test execution.
+Step 1. Select your <b>recorded HAR file</b>.<br/>
+Step 2. Click <b>Browse or drag and drop</b> the file into the upload area.<br/>
+Step 3. If <b>configuration</b> options are needed, enable the <b>toggle switch</b>. Otherwise, leave it off.<br/>
+Step 4. Once ready, click <b>Convert to JMX</b> and download your generated JMX file.<br/>
+<br/>
+Rest is yours, You can <b>verify, enhance, and finalize</b> your script so it’s fully validated and ready for load test execution.
