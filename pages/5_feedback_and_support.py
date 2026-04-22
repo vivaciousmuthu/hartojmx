@@ -8,10 +8,10 @@ st.title("📧 Feedback & Support")
 # Contact & Feedback
 st.write("""
 We'd love to hear from you! If you have suggestions, bug reports, or feature requests, 
-please fill out the form below or reach out using the contact information on the About page.
+please fill out the form below.
 """)
 
-with st.expander("📝 Feedback Google Form", expanded=False):
+with st.expander("📝 Feedback Form", expanded=False):
     st.info("""
     **🔗 Google Form for Feedback**
     
@@ -19,14 +19,9 @@ with st.expander("📝 Feedback Google Form", expanded=False):
     
     """)
 
-st.divider()
-
 st.subheader("🙏 Thank You!")
 
 st.markdown("""
-Thank you for using the **HAR to JMX Converter**! Your support and feedback 
-help us make this tool better every day. We appreciate your trust in our application.
-
 Happy testing! 🚀
 """)
 
