@@ -13,7 +13,7 @@ st.subheader("👋 Hello, I'm Muthuvinayagam!")
 st.write("""
 I am Muthu Vinayagam and working as a Software Performance Engineer in a Tech company. I am also an avid learner developing my skills for my work which I love. I am passionate about building and creating products with a own interest and self-motivation. \n\n
 This HAR to JMX Converter is one such initiative born out of a desire to simplify the JMeter script development purpose. \n\n
-I have developed small gaming app, music app, fitness app and rocerylist app and I used to travel a lot and exploring ancient temple, enjoy food and tea for sure wherever I go. I am enjoying my run, cycle, workout as well as yoga.
+I have developed small gaming app, music app, fitness app and Grocerylist app and I used to travel a lot and exploring ancient temple, enjoy food and tea for sure wherever I go. I am enjoying my running, cycling, workout as well as yoga.
 
     """)
 
