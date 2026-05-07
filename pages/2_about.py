@@ -11,9 +11,11 @@ st.title("ℹ️ About Me")
 st.subheader("👋 Hello, I'm Muthuvinayagam!")
     
 st.write("""
-I am Muthu Vinayagam and working as a Software Performance Engineer in a Tech company. I am also an avid learner developing my skills for my work which I love. I am passionate about building and creating products with a own interest and self-motivation. \n\n
-This HAR to JMX Converter is one such initiative born out of a desire to simplify the JMeter script development purpose. \n\n
-I have developed small gaming app, music app, fitness app and Grocerylist app and I used to travel a lot and exploring ancient temple, enjoy food and tea for sure wherever I go. I am enjoying my running, cycling, workout as well as yoga.
+I am Muthu Vinayagam, a Software Performance Engineer with experience in the tech industry. I am an enthusiastic learner who continuously works on improving my skills because I genuinely enjoy what I do. I am passionate about building products driven by curiosity, self-motivation, and personal interest. \n\n
+In November 2025, I was laid off as part of a company restructuring decision made for business growth. While it was a challenging phase, I chose to view it as an opportunity rather than a setback. I stayed motivated and focused on transforming my ideas into meaningful products that could help others. \n\n
+One of my first initiatives was developing a JMeter script conversion tool for performance testers. The HAR to JMX Converter was created with the goal of simplifying JMeter script development and making the process more efficient for testing professionals. This project reflects my determination to reinvent myself during a difficult period and continue creating value through technology. \n\n
+Apart from this, I have also developed small applications including gaming, music, fitness, and grocery list apps. I love traveling and exploring ancient temples, and I never miss the chance to enjoy good food and tea wherever I go. \n\n
+Outside of work, I actively enjoy running, cycling, workouts, and yoga, which help me maintain both physical and mental balance.
 
     """)
 
@@ -67,6 +69,8 @@ By automating this process, I aimed to:
 - 📈 **Enable better load testing** practices
 
 The tool is evolving continuously based on feedback and new feature requests!
+         
+                 
 """)
 
 st.divider()
