@@ -9,11 +9,14 @@ st.set_page_config(page_title="HAR to JMX Converter - Converter", page_icon="�
 
 st.title("🔄 HAR to JMX Converter")
 st.write("""
-Upload a **.har** file to generate a standardized **.jmx (JMeter)** file 🚀🎯😊. 
+Upload a **browser generated** **.har** file to generate a standardized **.jmx (JMeter)** file 🚀🎯😊. 
 After conversion, you can proceed with further script enhancements. 
 
 **Note:** Please upload only one file at a time. We do not store any uploaded files on our server. 
 Simply upload and export instantly.
+
+**Browser Support:** Chrome, Firefox, Edge, and Safari browsers are supported for HAR file generation.
+**Upcoming:** Fiddler HAR file support will be added in future releases.
 """)
 st.write("This tool is designed to save you time! I hope you find it helpful. Please feel free to reach out if you have any issues or suggestions.")
 
