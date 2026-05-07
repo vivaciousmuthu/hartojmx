@@ -108,7 +108,34 @@ This command:
 
 # Release Notes
 with st.expander("📢 Release Notes & Version History", expanded=False):
-    st.subheader("V1.1.0 (Latest)")
+    st.subheader("V1.2.0 (Latest)")
+    st.markdown("""
+    **Released:** May 7, 2026
+    
+    **New Features:**
+    - ✨ **Browser-Generated HAR Files Support** - Chrome, Firefox, Edge, Safari DevTools
+    - ✨ **Domain-Based Social Media Filtering** - Accurate filtering with domain matching (not substring)
+    - ✨ **Enhanced GraphQL Detection** - More precise GraphQL operation syntax validation
+    
+    **Improvements:**
+    - 🔧 **Fixed Social Media Filter** - Now checks domain only, not file paths or parameters
+    - 🔧 **Better GraphQL Detection** - Distinguishes actual GraphQL operations from REST APIs with 'query' fields
+    - 🔧 **Improved Validation** - More accurate entry validation logic
+    - 🔧 **User Guidance** - Clear documentation about browser-generated HAR files
+    
+    **Bug Fixes:**
+    - 🐛 Fixed issue where legitimate APIs were filtered due to social media keywords in filenames
+    - 🐛 Fixed false-positive GraphQL detection for REST APIs with JSON bodies
+    - 🐛 Resolved substring matching issue in social media URL filtering
+    - 🐛 Corrected subdomain prefix removal for domain validation
+    
+    **Limitations & Future Roadmap:**
+    - ⚠️ **Fiddler HAR Files** - Not yet supported (planned for v1.3.0)
+    - 📋 Currently optimized for browser DevTools HAR format
+    - 🗓️ Fiddler support will be added based on community feedback
+    """)
+    
+    st.subheader("V1.1.0")
     st.markdown("""
     **Released:** April 20, 2026
     
@@ -132,8 +159,6 @@ with st.expander("📢 Release Notes & Version History", expanded=False):
     - 🐛 Better query parameter extraction for all methods
     - 🐛 Enhanced GraphQL body parsing
     """)
-    
-    st.subheader("V1.0.2")
     st.markdown("""
     **Released:** April 2026
     
@@ -173,7 +198,17 @@ with st.expander("📢 Release Notes & Version History", expanded=False):
 # Changelog
 with st.expander("📝 Changelog", expanded=False):
     st.markdown("""
-    **2026-04-20 (V1.1.0) - Latest**
+    **2026-05-07 (V1.2.0) - Latest**
+    - Added browser-generated HAR file support (Chrome, Firefox, Edge, Safari)
+    - Fixed social media filter to use domain-based matching instead of substring
+    - Improved GraphQL detection to validate actual operation syntax
+    - Fixed issue where legitimate APIs were filtered due to keywords in filenames
+    - Fixed false-positive GraphQL detection for REST APIs with JSON bodies
+    - Corrected subdomain prefix removal (www, m, mobile) for accurate domain validation
+    - Added roadmap note for Fiddler support in v1.3.0
+    - Updated user documentation and guidance
+    
+    **2026-04-20 (V1.1.0)**
     - Added support for all HTTP methods (HEAD, PUT, PATCH, DELETE, OPTIONS, TRACE)
     - Implemented GraphQL request detection and conversion
     - Added GraphQL body parsing with query, mutation, and variable extraction
@@ -215,10 +250,37 @@ with st.expander("🆘 Troubleshooting & FAQ", expanded=False):
     
     with st.container():
         st.markdown("""
+        **Q: What types of HAR files are supported?**
+        
+        A: Currently, only **browser-generated HAR files** are fully supported. These include:
+        - Chrome DevTools (Recommended)
+        - Firefox DevTools
+        - Safari DevTools
+        - Edge DevTools
+        
+        **Upcoming:** Fiddler HAR file support will be added in v1.3.0 release.
+        """)
+        st.divider()
+    
+    with st.container():
+        st.markdown("""
+        **Q: I have a Fiddler HAR file. Can I use it?**
+        
+        A: Not yet. Currently, the converter is optimized for browser-generated HAR files only. 
+        Fiddler HAR file support is planned for a future release (v1.3.0).
+        
+        **Workaround:** You can export your Fiddler capture as HAR and test it, but results may vary.
+        We recommend using Chrome/Firefox DevTools for now to ensure best results.
+        """)
+        st.divider()
+    
+    with st.container():
+        st.markdown("""
         **Q: I uploaded a HAR file but got an error about invalid format.**
         
-        A: Ensure your file is a valid JSON file. HAR files are JSON-based. 
-        The file might be corrupted or incomplete. Try recording a fresh HAR file.
+        A: Ensure your file is a valid JSON file from a supported browser. HAR files are JSON-based. 
+        The file might be corrupted, incomplete, or from an unsupported tool. 
+        Try recording a fresh HAR file using Chrome/Firefox DevTools.
         """)
         st.divider()
     
@@ -261,10 +323,14 @@ with st.expander("🆘 Troubleshooting & FAQ", expanded=False):
     
     with st.container():
         st.markdown("""
-        **Q: What types of requests does the converter support?**
+        **Q: What types of requests and HTTP methods does the converter support?**
         
-        A: Currently supports GET and POST requests. Other methods (PUT, DELETE, PATCH) 
-        will be supported in future versions.
+        A: All HTTP methods are supported:
+        - GET, HEAD, POST, PUT, PATCH, DELETE
+        - OPTIONS, TRACE
+        - GraphQL (automatic detection)
+        
+        The converter properly handles query parameters, request bodies, and headers for all methods.
         """)
 
 
@@ -352,14 +418,16 @@ with st.expander("🚀 What features are planned for the future?", expanded=Fals
     st.markdown("""
     **Upcoming Features (Roadmap):**
     
-    - 🔄 Request/Response correlation support
-    - 📊 Enhanced performance metrics and reporting
-    - 🔐 Advanced authentication handling
-    - 🎯 Custom extraction and variable creation
-    - 📝 Parameter handling improvements
-    - 🔔 Real-time validation and suggestions
-    - 🌐 Web UI improvements and redesign
-    - 📱 Mobile app version
+    - ✅ v1.2.0 (Current) - Browser-generated HAR files, improved filtering, better validation
+    - 📋 v1.3.0 - **Fiddler HAR file support** (high priority)
+    - 🔄 v1.4.0 - Request/Response correlation support
+    - 📊 v1.5.0 - Enhanced performance metrics and reporting
+    - 🔐 v1.6.0+ - Advanced authentication handling
+    - 🎯 Future - Custom extraction and variable creation
+    - 📝 Future - Parameter handling improvements
+    - 🔔 Future - Real-time validation and suggestions
+    - 🌐 Future - Web UI improvements and redesign
+    - 📱 Future - Mobile app version
     
     We're continuously improving based on user feedback!
     """)
