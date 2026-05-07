@@ -1,6 +1,6 @@
 import streamlit as st
 
-APP_VERSION = "V1.1.0"
+APP_VERSION = "V1.2.0"
 year = 2026
 
 
