@@ -99,45 +99,99 @@ def validate_thread_group_name(thread_group_name):
 
 # Helper function to check if URL is a social media link
 def is_social_media_url(url):
-    """Check if URL belongs to a social media platform"""
+    """Check if URL belongs to a social media platform (domain-based, not substring matching)"""
     if not url:
         return False
+    
     url_lower = url.lower()
-    social_media_domains = [
-        'twitter.com', 'x.com', 'facebook.com', 'fb.com',
-        'instagram.com', 'pinterest.com', 'linkedin.com', 'tiktok.com',
-        'youtube.com', 'youtu.be', 'reddit.com', 'snapchat.com',
-        'telegram.me', 'telegram.org', 'whatsapp.com', 'viber.com',
-        'discord.com', 'connect.facebook.net', 'api.twitter.com', 'graph.facebook.com', 'ads.twitter.com', 'business.facebook.com', 'google-analytics.com', 'googletagmanager.com', 'googlesyndication.com'
-    ]
-    return any(domain in url_lower for domain in social_media_domains)
+    
+    # Extract domain from URL
+    try:
+        # Get domain from URL (e.g., 'facebook.com' from 'https://www.facebook.com/page')
+        from urllib.parse import urlparse
+        parsed = urlparse(url_lower)
+        domain = parsed.netloc  # e.g., 'www.facebook.com'
+        
+        if not domain:
+            return False
+        
+        # Remove common subdomain prefixes (www, m, mobile)
+        domain_clean = domain
+        if domain_clean.startswith('www.'):
+            domain_clean = domain_clean[4:]
+        elif domain_clean.startswith('m.'):
+            domain_clean = domain_clean[2:]
+        elif domain_clean.startswith('mobile.'):
+            domain_clean = domain_clean[7:]
+        
+        # Only include actual social media platforms
+        social_media_domains = [
+            'twitter.com', 'x.com', 'facebook.com', 'fb.com',
+            'instagram.com', 'pinterest.com', 'linkedin.com', 'tiktok.com',
+            'youtube.com', 'youtu.be', 'reddit.com', 'snapchat.com',
+            'telegram.me', 'telegram.org', 'whatsapp.com', 'viber.com',
+            'discord.com', 'connect.facebook.net', 'api.twitter.com', 'graph.facebook.com'
+        ]
+        
+        # Check if domain matches any social media domain
+        return any(domain_clean == soc_domain or domain_clean.endswith('.' + soc_domain) 
+                   for soc_domain in social_media_domains)
+    
+    except Exception:
+        return False
 
 
 # Helper function to detect GraphQL requests
 def is_graphql_request(request, url):
-    """Check if the request is a GraphQL request"""
+    """Check if the request is a GraphQL request based on URL and body structure"""
     if not isinstance(request, dict):
         return False
     
     url_lower = url.lower() if url else ""
     
-    # Check for GraphQL indicators in URL
+    # Check for GraphQL indicators in URL (most reliable)
     if 'graphql' in url_lower:
         return True
     
-    # Check for GraphQL in headers
-    headers = request.get('headers', [])
-    for header in headers:
-        if isinstance(header, dict):
-            header_name = header.get('name', '').lower()
-            if 'content-type' in header_name:
-                header_value = header.get('value', '').lower()
-                if 'application/json' in header_value or 'graphql' in header_value:
-                    # Check if body contains GraphQL query
-                    post_data = request.get('postData', {})
-                    body_text = post_data.get('text', '')
-                    if body_text and ('query' in body_text.lower() or 'mutation' in body_text.lower()):
-                        return True
+    # For non-GraphQL URLs, check if the body has GraphQL operation syntax
+    # This avoids false positives from REST APIs that have 'query' fields
+    post_data = request.get('postData', {})
+    body_text = post_data.get('text', '')
+    
+    if not body_text:
+        return False
+    
+    try:
+        # Try to parse as JSON
+        body_json = json.loads(body_text) if isinstance(body_text, str) else body_text
+        
+        if not isinstance(body_json, dict):
+            return False
+        
+        # GraphQL POST requests have this structure: {"query": "...", "operationName": "...", "variables": {...}}
+        # Check if it has 'query' key with actual GraphQL operation syntax
+        query_value = body_json.get('query', '')
+        
+        if not isinstance(query_value, str) or not query_value.strip():
+            return False
+        
+        # Check for actual GraphQL operation syntax: starts with 'query', 'mutation', or 'subscription'
+        # This distinguishes from regular REST APIs that might have a 'query' field
+        query_lower = query_value.strip().lower()
+        
+        # Look for GraphQL operation keywords at start of query
+        if (query_lower.startswith('query') or 
+            query_lower.startswith('mutation') or 
+            query_lower.startswith('subscription') or
+            query_lower.startswith('{')):
+            
+            # Additionally, check if it looks like GraphQL by looking for field selections
+            # GraphQL syntax includes { fieldName } pattern
+            if '{' in query_value and '}' in query_value:
+                return True
+    
+    except (json.JSONDecodeError, TypeError, AttributeError):
+        pass
     
     return False
 
@@ -338,6 +392,117 @@ def add_headers_to_sampler(sampler_hash_tree, headers):
     SubElement(sampler_hash_tree, 'hashTree')
 
 
+# Helper function to create GraphQL HTTP Request sampler
+def create_graphql_sampler(transaction_hash_tree, script_prefix, idx, request_index, base_name, domain, protocol, port, path, query_string, request, graphql_data):
+    """
+    Create a GraphQL HTTP Request using HTTPSamplerProxy with JSON body.
+    GraphQL requests are standard POST requests with JSON-formatted body containing:
+    - query: the GraphQL query/mutation
+    - operationName (optional): the operation name for multi-operation documents
+    - variables (optional): GraphQL variables as JSON object
+    """
+    sampler_name = f'{script_prefix}_T{idx:02d}_{request_index:02d}_GraphQL_{base_name}'
+    
+    # Use HTTPSamplerProxy for GraphQL (the standard JMeter HTTP sampler)
+    http_sampler = SubElement(transaction_hash_tree, 'HTTPSamplerProxy', {
+        'guiclass': 'HttpTestSampleGui',
+        'testclass': 'HTTPSamplerProxy',
+        'testname': sampler_name,
+        'enabled': 'true'
+    })
+    
+    # Set server properties
+    SubElement(http_sampler, 'stringProp', {'name': 'HTTPSampler.domain'}).text = domain
+    SubElement(http_sampler, 'stringProp', {'name': 'HTTPSampler.protocol'}).text = protocol
+    SubElement(http_sampler, 'stringProp', {'name': 'HTTPSampler.port'}).text = port
+    
+    # Set path with query string
+    full_path = path
+    if query_string:
+        full_path += '?' + query_string
+    SubElement(http_sampler, 'stringProp', {'name': 'HTTPSampler.path'}).text = full_path
+    
+    # GraphQL is always POST
+    SubElement(http_sampler, 'stringProp', {'name': 'HTTPSampler.method'}).text = 'POST'
+    
+    # Standard HTTP properties
+    SubElement(http_sampler, 'stringProp', {'name': 'HTTPSampler.contentEncoding'}).text = 'UTF-8'
+    SubElement(http_sampler, 'boolProp', {'name': 'HTTPSampler.follow_redirects'}).text = 'false'
+    SubElement(http_sampler, 'boolProp', {'name': 'HTTPSampler.auto_redirects'}).text = 'false'
+    SubElement(http_sampler, 'boolProp', {'name': 'HTTPSampler.use_keepalive'}).text = 'true'
+    SubElement(http_sampler, 'boolProp', {'name': 'HTTPSampler.DO_MULTIPART_POST'}).text = 'false'
+    SubElement(http_sampler, 'stringProp', {'name': 'HTTPSampler.embedded_url_re'}).text = ''
+    
+    # Build GraphQL JSON body
+    graphql_body = {}
+    
+    # Add query (required)
+    query_text = graphql_data.get('query', '')
+    if query_text:
+        graphql_body['query'] = query_text
+    
+    # Add operationName if present
+    operation_name = graphql_data.get('operation', '')
+    if operation_name:
+        graphql_body['operationName'] = operation_name
+    
+    # Add variables if present (as object, not string)
+    variables_text = graphql_data.get('variables', '')
+    if variables_text:
+        try:
+            graphql_body['variables'] = json.loads(variables_text) if isinstance(variables_text, str) else variables_text
+        except json.JSONDecodeError:
+            # If variables is not valid JSON, skip it
+            pass
+    
+    # Convert body to JSON string
+    graphql_json_body = json.dumps(graphql_body)
+    
+    # Add body as HTTP Arguments (raw POST body)
+    args_prop = SubElement(http_sampler, 'elementProp', {
+        'name': 'HTTPsampler.Arguments',
+        'elementType': 'Arguments',
+        'guiclass': 'HTTPArgumentsPanel',
+        'testclass': 'Arguments',
+        'testname': 'User Defined Variables',
+        'enabled': 'true'
+    })
+    collection_prod = SubElement(args_prop, 'collectionProp', {'name': 'Arguments.arguments'})
+    
+    # Set as raw body (not form parameters)
+    SubElement(http_sampler, 'boolProp', {'name': 'HTTPSampler.postBodyRaw'}).text = 'true'
+    
+    param_element = SubElement(collection_prod, 'elementProp', {
+        'name': '',
+        'elementType': 'HTTPArgument'
+    })
+    SubElement(param_element, 'boolProp', {'name': 'HTTPArgument.always_encode'}).text = 'false'
+    SubElement(param_element, 'stringProp', {'name': 'Argument.value'}).text = sanitize_text(graphql_json_body)
+    SubElement(param_element, 'stringProp', {'name': 'Argument.metadata'}).text = '='
+    SubElement(param_element, 'boolProp', {'name': 'HTTPArgument.use_equals'}).text = 'true'
+    
+    # Create hashTree for the sampler
+    sampler_hash_tree = SubElement(transaction_hash_tree, 'hashTree')
+    
+    # Add headers to the sampler's hashTree using add_headers_to_sampler
+    # Make sure Content-Type is set to application/json for GraphQL
+    headers = request.get('headers', [])
+    
+    # Add Content-Type header if not present
+    content_type_found = False
+    for header in headers:
+        if isinstance(header, dict) and header.get('name', '').lower() == 'content-type':
+            content_type_found = True
+            break
+    
+    if not content_type_found:
+        headers = list(headers) + [{'name': 'Content-Type', 'value': 'application/json'}]
+    
+    add_headers_to_sampler(sampler_hash_tree, headers)
+    
+    return http_sampler
+
+
 
 # Add listener configuration elements
 def add_listener_config(parent):
@@ -500,142 +665,110 @@ def har_to_jmx(har_data, time_gap_threshold=5, include_headers=False, include_li
             # Check if this is a GraphQL request
             is_graphql = is_graphql_request(request, url)
             
-            # Create sampler name
-            sampler_type = 'GraphQL' if is_graphql else method
-            sampler_name = f'{script_prefix}_T{idx:02d}_{request_index:02d}_{sampler_type}_{base_name}'
-
-            # Create HTTP sampler
-            http_sampler = SubElement(transaction_hash_tree, 'HTTPSamplerProxy', {
-                'guiclass': 'HttpTestSampleGui',
-                'testclass': 'HTTPSamplerProxy',
-                'testname': sampler_name,
-                'enabled': 'true'
-            })
-            
-            SubElement(http_sampler, 'stringProp', {'name': 'HTTPSampler.domain'}).text = domain
-            SubElement(http_sampler, 'stringProp', {'name': 'HTTPSampler.protocol'}).text = protocol
-            SubElement(http_sampler, 'stringProp', {'name': 'HTTPSampler.port'}).text = port
-            SubElement(http_sampler, 'stringProp', {'name': 'HTTPSampler.method'}).text = method
-
-            # Add standard HTTP properties
-            SubElement(http_sampler, 'stringProp', {'name': 'HTTPSampler.contentEncoding'}).text = 'UTF-8'
-            SubElement(http_sampler, 'boolProp', {'name': 'HTTPSampler.follow_redirects'}).text = 'false'
-            SubElement(http_sampler, 'boolProp', {'name': 'HTTPSampler.auto_redirects'}).text = 'false'
-            SubElement(http_sampler, 'boolProp', {'name': 'HTTPSampler.use_keepalive'}).text = 'true'
-            SubElement(http_sampler, 'boolProp', {'name': 'HTTPSampler.DO_MULTIPART_POST'}).text = 'false'
-            SubElement(http_sampler, 'stringProp', {'name': 'HTTPSampler.embedded_url_re'}).text = ''
-
-            # Handle GraphQL requests
+            # Handle GraphQL requests with dedicated GraphQL sampler
             if is_graphql:
                 graphql_data = parse_graphql_body(request.get('postData', {}).get('text', ''))
-                
-                # Set path
-                full_path = parsed_url.path
-                if parsed_url.query:
-                    full_path += '?' + parsed_url.query
-                SubElement(http_sampler, 'stringProp', {'name': 'HTTPSampler.path'}).text = full_path
-                
-                # Add GraphQL specific properties
-                SubElement(http_sampler, 'boolProp', {'name': 'HTTPSampler.postBodyRaw'}).text = 'true'
-                
-                # Add Arguments (GraphQL query and variables)
-                args_prop = SubElement(http_sampler, 'elementProp', {
-                    'name': 'HTTPsampler.Arguments',
-                    'elementType': 'Arguments',
-                    'guiclass': 'HTTPArgumentsPanel',
-                    'testclass': 'Arguments',
-                    'testname': 'User Defined Variables',
+                create_graphql_sampler(transaction_hash_tree, script_prefix, idx, request_index, base_name, 
+                                      domain, protocol, port, parsed_url.path, parsed_url.query, request, graphql_data)
+            
+            # Handle non-GraphQL HTTP requests
+            else:
+                # Create sampler name
+                sampler_name = f'{script_prefix}_T{idx:02d}_{request_index:02d}_{method}_{base_name}'
+
+                # Create HTTP sampler
+                http_sampler = SubElement(transaction_hash_tree, 'HTTPSamplerProxy', {
+                    'guiclass': 'HttpTestSampleGui',
+                    'testclass': 'HTTPSamplerProxy',
+                    'testname': sampler_name,
                     'enabled': 'true'
                 })
-                collection_prod = SubElement(args_prop, 'collectionProp', {'name': 'Arguments.arguments'})
                 
-                # Add GraphQL body as raw request
-                param_element = SubElement(collection_prod, 'elementProp', {
-                    'name': '',
-                    'elementType': 'HTTPArgument'
-                })
-                SubElement(param_element, 'boolProp', {'name': 'HTTPArgument.always_encode'}).text = 'false'
-                body_text = request.get('postData', {}).get('text', '')
-                if body_text:
-                    body_text = sanitize_text(str(body_text) if not isinstance(body_text, str) else body_text)
-                SubElement(param_element, 'stringProp', {'name': 'Argument.value'}).text = body_text
-                SubElement(param_element, 'stringProp', {'name': 'Argument.metadata'}).text = '='
-                SubElement(param_element, 'boolProp', {'name': 'HTTPArgument.use_equals'}).text = 'true'
+                SubElement(http_sampler, 'stringProp', {'name': 'HTTPSampler.domain'}).text = domain
+                SubElement(http_sampler, 'stringProp', {'name': 'HTTPSampler.protocol'}).text = protocol
+                SubElement(http_sampler, 'stringProp', {'name': 'HTTPSampler.port'}).text = port
+                SubElement(http_sampler, 'stringProp', {'name': 'HTTPSampler.method'}).text = method
 
-            # Handle GET and HEAD requests
-            elif method in ['GET', 'HEAD', 'DELETE', 'OPTIONS', 'TRACE']:
-                parsed_url = urlparse(url)
-                SubElement(http_sampler, 'stringProp', {'name': 'HTTPSampler.path'}).text = parsed_url.path
-                
-                # Add query parameters for all GET/HEAD/DELETE/OPTIONS/TRACE requests
-                query_params_combined = {}
-                
-                # From parsed URL
-                for name, values in parse_qs(parsed_url.query, keep_blank_values=True).items():
-                    query_params_combined.setdefault(name, []).extend(values)
-                
-                # From HAR queryString
-                if request.get('queryString'):
-                    for param in request['queryString']:
-                        query_params_combined[param['name']] = [param['value']]
-                
-                # Add query params to JMX if any exist
-                if query_params_combined:
-                    args_prop = SubElement(http_sampler, 'elementProp', {
-                        'name': 'HTTPsampler.Arguments',
-                        'elementType': 'Arguments',
-                        'guiclass': 'HTTPArgumentsPanel',
-                        'testclass': 'Arguments',
-                        'testname': 'User Defined Variables',
-                        'enabled': 'true'
-                    })
-                    collection_prod = SubElement(args_prop, 'collectionProp', {'name': 'Arguments.arguments'})
-                    
-                    for name, values in query_params_combined.items():
-                        for value in values:
-                            param_element = SubElement(collection_prod, 'elementProp', {
-                                'name': name,
-                                'elementType': 'HTTPArgument'
-                            })
-                            SubElement(param_element, 'boolProp', {'name': 'HTTPArgument.always_encode'}).text = 'false'
-                            SubElement(param_element, 'stringProp', {'name': 'Argument.name'}).text = sanitize_text(name)
-                            SubElement(param_element, 'stringProp', {'name': 'Argument.value'}).text = sanitize_text(value)
-                            SubElement(param_element, 'stringProp', {'name': 'Argument.metadata'}).text = '='
-                            SubElement(param_element, 'boolProp', {'name': 'HTTPArgument.use_equals'}).text = 'true'
+                # Add standard HTTP properties
+                SubElement(http_sampler, 'stringProp', {'name': 'HTTPSampler.contentEncoding'}).text = 'UTF-8'
+                SubElement(http_sampler, 'boolProp', {'name': 'HTTPSampler.follow_redirects'}).text = 'false'
+                SubElement(http_sampler, 'boolProp', {'name': 'HTTPSampler.auto_redirects'}).text = 'false'
+                SubElement(http_sampler, 'boolProp', {'name': 'HTTPSampler.use_keepalive'}).text = 'true'
+                SubElement(http_sampler, 'boolProp', {'name': 'HTTPSampler.DO_MULTIPART_POST'}).text = 'false'
+                SubElement(http_sampler, 'stringProp', {'name': 'HTTPSampler.embedded_url_re'}).text = ''
 
-            # Handle POST, PUT, PATCH requests
-            elif method in ['POST', 'PUT', 'PATCH']:
-                parsed_url = urlparse(url)
-                post_data = request.get('postData', {})
-                
-                has_params = 'params' in post_data
-                has_text = 'text' in post_data
-                
-                if has_params:
-                    # Form-style body with parameters
+                # Handle GET and HEAD requests
+                if method in ['GET', 'HEAD', 'DELETE', 'OPTIONS', 'TRACE']:
                     SubElement(http_sampler, 'stringProp', {'name': 'HTTPSampler.path'}).text = parsed_url.path
-                    add_body_parameters(http_sampler, post_data, is_raw=False)
-                
-                elif has_text:
-                    # Raw body (JSON or other formats)
-                    full_path = parsed_url.path
-                    if parsed_url.query:
-                        full_path += '?' + parsed_url.query
-                    SubElement(http_sampler, 'stringProp', {'name': 'HTTPSampler.path'}).text = full_path
-                    add_body_parameters(http_sampler, post_data, is_raw=True)
-                
-                else:
-                    # No body
-                    full_path = parsed_url.path
-                    if parsed_url.query:
-                        full_path += '?' + parsed_url.query
-                    SubElement(http_sampler, 'stringProp', {'name': 'HTTPSampler.path'}).text = full_path
+                    
+                    # Add query parameters for all GET/HEAD/DELETE/OPTIONS/TRACE requests
+                    query_params_combined = {}
+                    
+                    # From parsed URL
+                    for name, values in parse_qs(parsed_url.query, keep_blank_values=True).items():
+                        query_params_combined.setdefault(name, []).extend(values)
+                    
+                    # From HAR queryString
+                    if request.get('queryString'):
+                        for param in request['queryString']:
+                            query_params_combined[param['name']] = [param['value']]
+                    
+                    # Add query params to JMX if any exist
+                    if query_params_combined:
+                        args_prop = SubElement(http_sampler, 'elementProp', {
+                            'name': 'HTTPsampler.Arguments',
+                            'elementType': 'Arguments',
+                            'guiclass': 'HTTPArgumentsPanel',
+                            'testclass': 'Arguments',
+                            'testname': 'User Defined Variables',
+                            'enabled': 'true'
+                        })
+                        collection_prod = SubElement(args_prop, 'collectionProp', {'name': 'Arguments.arguments'})
+                        
+                        for name, values in query_params_combined.items():
+                            for value in values:
+                                param_element = SubElement(collection_prod, 'elementProp', {
+                                    'name': name,
+                                    'elementType': 'HTTPArgument'
+                                })
+                                SubElement(param_element, 'boolProp', {'name': 'HTTPArgument.always_encode'}).text = 'false'
+                                SubElement(param_element, 'stringProp', {'name': 'Argument.name'}).text = sanitize_text(name)
+                                SubElement(param_element, 'stringProp', {'name': 'Argument.value'}).text = sanitize_text(value)
+                                SubElement(param_element, 'stringProp', {'name': 'Argument.metadata'}).text = '='
+                                SubElement(param_element, 'boolProp', {'name': 'HTTPArgument.use_equals'}).text = 'true'
 
-            # Add hashTree for HTTP Sampler
-            sampler_hash_tree = SubElement(transaction_hash_tree, 'hashTree')
-            
-            # Add headers to sampler
-            add_headers_to_sampler(sampler_hash_tree, request.get('headers', []))
+                # Handle POST, PUT, PATCH requests
+                elif method in ['POST', 'PUT', 'PATCH']:
+                    post_data = request.get('postData', {})
+                    
+                    has_params = 'params' in post_data
+                    has_text = 'text' in post_data
+                    
+                    if has_params:
+                        # Form-style body with parameters
+                        SubElement(http_sampler, 'stringProp', {'name': 'HTTPSampler.path'}).text = parsed_url.path
+                        add_body_parameters(http_sampler, post_data, is_raw=False)
+                    
+                    elif has_text:
+                        # Raw body (JSON or other formats)
+                        full_path = parsed_url.path
+                        if parsed_url.query:
+                            full_path += '?' + parsed_url.query
+                        SubElement(http_sampler, 'stringProp', {'name': 'HTTPSampler.path'}).text = full_path
+                        add_body_parameters(http_sampler, post_data, is_raw=True)
+                    
+                    else:
+                        # No body
+                        full_path = parsed_url.path
+                        if parsed_url.query:
+                            full_path += '?' + parsed_url.query
+                        SubElement(http_sampler, 'stringProp', {'name': 'HTTPSampler.path'}).text = full_path
+
+                # Add hashTree for HTTP Sampler
+                sampler_hash_tree = SubElement(transaction_hash_tree, 'hashTree')
+                
+                # Add headers to sampler
+                add_headers_to_sampler(sampler_hash_tree, request.get('headers', []))
     
     if include_listeners:
         add_listener_config(thread_hash_tree)
